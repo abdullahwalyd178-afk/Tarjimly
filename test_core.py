@@ -70,7 +70,7 @@ def test_translate():
     assert core.translate_text("hi", "en", lambda: flaky) == "T:hi"
     dead = FakeTranslator(fail_first=99)  # persistent failure is reported
     try:
-        core.translate_text("hi", "en", lambda: dead)
+        core.translate_text("hi", "en", lambda: dead, ollama_fallback=False)
         raise AssertionError("should have raised")
     except ConnectionError:
         pass
@@ -79,6 +79,15 @@ def test_translate():
         raise AssertionError("fr is not a supported target")
     except ValueError:
         pass
+    # A Google rate-limit response should use Ollama immediately, without retrying Google.
+    rate_limited = FakeTranslator(fail_first=99)
+    original_fallback = core.translate_with_ollama
+    try:
+        core.translate_with_ollama = lambda text, target, base_url, model: "LOCAL:" + text
+        assert core.translate_text("hello", "ar", lambda: rate_limited) == "LOCAL:hello"
+        assert len(rate_limited.calls) == 1
+    finally:
+        core.translate_with_ollama = original_fallback
     print("ok translate (mocked)")
 
 
