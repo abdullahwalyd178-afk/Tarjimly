@@ -16,6 +16,8 @@ def test_config():
     assert cfg["source_languages"] == ["en", "fr", "de", "es"], cfg  # unknown dropped, dedup, max 4
     assert cfg["default_target"] == "ar"
     assert core.normalize_config({"source_languages": []})["source_languages"] == core.DEFAULT_CONFIG["source_languages"]
+    assert core.normalize_config({"source_languages": None})["source_languages"] == core.DEFAULT_CONFIG["source_languages"]
+    assert core.normalize_config({"source_languages": "en"})["source_languages"] == core.DEFAULT_CONFIG["source_languages"]
     assert len(core.DEFAULT_CONFIG["source_languages"]) == 4
     assert "en" in core.DEFAULT_CONFIG["source_languages"]
     print("ok config")
