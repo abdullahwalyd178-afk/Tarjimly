@@ -272,6 +272,7 @@ class App:
                 return
             self.events.put(("status", "جاري الترجمة ..."))
             translated = core.translate_text(text, target)
+            self.events.put(("result", text, translated, target))
 
         except Exception as exc:
             self.events.put(("error", f"{exc}"))
@@ -294,6 +295,18 @@ class App:
         self.root.update()
         self.root.after(250, self._send_copy)  # let the user release the hotkey
 
+    def _restore_clipboard(self):
+        """Restore the previous text clipboard, including an originally empty clipboard."""
+        previous = getattr(self, "_prev_clip", None)
+        try:
+            self.root.clipboard_clear()
+            if previous is not None:
+                self.root.clipboard_append(previous)
+        except tk.TclError:
+            pass
+        finally:
+            self._prev_clip = None
+
     def _send_copy(self):
         try:
             from pynput.keyboard import Controller, Key
@@ -309,6 +322,7 @@ class App:
                 kb.press("c")
                 kb.release("c")
         except Exception as exc:
+            self._restore_clipboard()
             self.busy = False
             self.set_status(f"⚠ تعذّر النسخ التلقائي: {exc}")
             return
@@ -316,9 +330,7 @@ class App:
 
     def _read_copy(self):
         text = self._clip_get()
-        if self._prev_clip is not None:  # put the user's clipboard back
-            self.root.clipboard_clear()
-            self.root.clipboard_append(self._prev_clip)
+        self._restore_clipboard()
         if not text or text == SENTINEL or not text.strip():
             self.busy = False
             self.set_status("ما لقيتش نص محدد. حدّد نص بالماوس وجرّب تاني.")
@@ -330,6 +342,10 @@ class App:
     def _translate_only(self, text: str, with_original: bool, target: str):
         try:
             translated = core.translate_text(text, target)
+            if with_original:
+                self.events.put(("result", text, translated, target))
+            else:
+                self.events.put(("translation", translated, target))
 
         except Exception as exc:
             self.events.put(("error", f"{exc}"))
