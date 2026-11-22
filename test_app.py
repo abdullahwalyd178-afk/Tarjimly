@@ -22,7 +22,7 @@ def test_translate_only_emits_full_result(monkeypatch):
 
 def test_translate_only_emits_translation_for_retranslate(monkeypatch):
     app = make_app()
-    monkeypatch.setattr(core, "translate_text", lambda text, target: "translated")
+    monkeypatch.setattr(core, "translate_text", lambda text, target, **kwargs: "translated")
     app._translate_only("edited", False, "en")
     assert app.events.get_nowait() == ("translation", "translated", "en")
 
