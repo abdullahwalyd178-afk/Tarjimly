@@ -50,6 +50,9 @@ DEFAULT_CONFIG = {
     "hotkey_selection": "<ctrl>+<alt>+s",  # translate the currently selected text
     "always_on_top": True,
     "join_lines": True,                 # merge OCR line breaks inside paragraphs
+    "ollama_fallback": True,             # use local Ollama only if Google fails
+    "ollama_url": "http://127.0.0.1:11434",
+    "ollama_model": "",                  # empty = use the first installed model
 }
 
 
@@ -73,6 +76,13 @@ def normalize_config(user_cfg: dict) -> dict:
     cfg["source_languages"] = seen[:MAX_SOURCE_LANGS] or list(DEFAULT_CONFIG["source_languages"])
     if cfg.get("default_target") not in TARGETS:
         cfg["default_target"] = "ar"
+    cfg["ollama_fallback"] = bool(cfg.get("ollama_fallback", True))
+    if not isinstance(cfg.get("ollama_url"), str) or not cfg["ollama_url"].strip():
+        cfg["ollama_url"] = DEFAULT_CONFIG["ollama_url"]
+    cfg["ollama_url"] = cfg["ollama_url"].rstrip("/")
+    if not isinstance(cfg.get("ollama_model"), str):
+        cfg["ollama_model"] = ""
+    cfg["ollama_model"] = cfg["ollama_model"].strip()
     return cfg
 
 
@@ -250,8 +260,57 @@ def split_chunks(text: str, limit: int = 4500) -> List[str]:
     return chunks
 
 
-def translate_text(text: str, target: str, translator_factory=None) -> str:
-    """Translate `text` (source language auto-detected) into `target` ('ar' or 'en')."""
+def _is_rate_limit_error(exc: Exception) -> bool:
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return "toomanyrequests" in name or "too many requests" in message or "429" in message or "rate limit" in message
+
+
+def translate_with_ollama(text: str, target: str, base_url: str = "http://127.0.0.1:11434",
+                          model: str = "", timeout: float = 60.0) -> str:
+    """Translate locally with Ollama. If model is empty, use the first installed model."""
+    base_url = base_url.rstrip("/")
+    if not model:
+        req = urllib.request.Request(base_url + "/api/tags", headers={"User-Agent": "Tarjimly/2.0"})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            models = json.loads(response.read().decode("utf-8")).get("models", [])
+        if not models:
+            raise RuntimeError("Ollama شغال لكن مفيش موديل متثبت. ثبّت موديل من Ollama ثم جرّب.")
+        model = models[0].get("name") or models[0].get("model")
+    if not model:
+        raise RuntimeError("تعذّر تحديد موديل Ollama.")
+
+    language = TARGETS[target]
+    prompt = (
+        f"Translate the text below into {language}. "
+        "Preserve meaning, names, formatting, and line breaks. "
+        "Return only the translation, without explanations.\n\n"
+        f"{text}"
+    )
+    payload = json.dumps({
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0.1},
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        base_url + "/api/generate", data=payload,
+        headers={"Content-Type": "application/json", "User-Agent": "Tarjimly/2.0"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    translated = (result.get("response") or "").strip()
+    if not translated:
+        raise RuntimeError("Ollama رجّع ترجمة فارغة.")
+    return translated
+
+
+def translate_text(text: str, target: str, translator_factory=None, *,
+                   ollama_fallback: bool = True,
+                   ollama_url: str = "http://127.0.0.1:11434",
+                   ollama_model: str = "") -> str:
+    """Use fast Google translation first; fall back to local Ollama if Google fails."""
     if target not in TARGETS:
         raise ValueError(f"unsupported target language: {target}")
     text = text.strip()
@@ -264,18 +323,27 @@ def translate_text(text: str, target: str, translator_factory=None) -> str:
     translator = translator_factory()
 
     parts = []
-    for chunk in split_chunks(text):
-        last_exc = None
-        for _ in range(2):  # one retry for flaky connections
+    try:
+        for chunk in split_chunks(text):
             try:
                 parts.append(translator.translate(chunk) or "")
-                last_exc = None
-                break
             except Exception as exc:
-                last_exc = exc
-        if last_exc is not None:
-            raise last_exc
-    return "\n".join(parts)
+                # A 429 is already an explicit rejection: don't immediately hammer Google again.
+                if _is_rate_limit_error(exc):
+                    raise
+                time.sleep(0.8)
+                parts.append(translator.translate(chunk) or "")
+        return "\n".join(parts)
+    except Exception as google_exc:
+        if not ollama_fallback:
+            raise
+        try:
+            return translate_with_ollama(text, target, ollama_url, ollama_model)
+        except Exception as ollama_exc:
+            raise RuntimeError(
+                f"Google Translate فشل ({google_exc})، وOllama الاحتياطي فشل ({ollama_exc}). "
+                "تأكد أن Ollama يعمل وأن لديك موديلًا مثبتًا."
+            ) from ollama_exc
 
 
 def internet_ok(timeout: float = 4.0) -> bool:
