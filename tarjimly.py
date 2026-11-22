@@ -169,16 +169,16 @@ class App:
         self.root.clipboard_append(widget.get("1.0", "end").strip())
         self.set_status("تم النسخ ✓")
 
-    def show_result(self, original: str, translated: str):
+    def show_result(self, original: str, translated: str, target: str):
         self.src.delete("1.0", "end")
         self.src.insert("1.0", original)
-        self.show_translation(translated)
+        self.show_translation(translated, target)
         self.root.deiconify()
         self.root.lift()
 
-    def show_translation(self, translated: str):
+    def show_translation(self, translated: str, target: str):
         self.out.delete("1.0", "end")
-        tags = ("rtl",) if self.target.get() == "ar" else ()
+        tags = ("rtl",) if target == "ar" else ()
         self.out.insert("1.0", translated, tags)
 
     # ---- startup ----------------------------------------------------------
@@ -225,11 +225,11 @@ class App:
                     self.root.deiconify()
                 elif kind == "result":
                     self.busy = False
-                    self.show_result(ev[1], ev[2])
+                    self.show_result(ev[1], ev[2], ev[3])
                     self.set_status("تمت الترجمة ✓")
                 elif kind == "translation":
                     self.busy = False
-                    self.show_translation(ev[1])
+                    self.show_translation(ev[1], ev[2])
                     self.set_status("تمت الترجمة ✓")
         except queue.Empty:
             pass
@@ -272,7 +272,7 @@ class App:
                 return
             self.events.put(("status", "جاري الترجمة ..."))
             translated = core.translate_text(text, target)
-            self.events.put(("result", text, translated))
+
         except Exception as exc:
             self.events.put(("error", f"{exc}"))
 
@@ -330,7 +330,7 @@ class App:
     def _translate_only(self, text: str, with_original: bool, target: str):
         try:
             translated = core.translate_text(text, target)
-            self.events.put(("result", text, translated) if with_original else ("translation", translated))
+
         except Exception as exc:
             self.events.put(("error", f"{exc}"))
 
