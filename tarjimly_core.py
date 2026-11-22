@@ -309,7 +309,7 @@ def translate_with_ollama(text: str, target: str, base_url: str = "http://127.0.
 def translate_text(text: str, target: str, translator_factory=None, *,
                    ollama_fallback: bool = True,
                    ollama_url: str = "http://127.0.0.1:11434",
-                   ollama_model: str = "") -> str:
+                   ollama_model: str = "", status_callback=None) -> str:
     """Use fast Google translation first; fall back to local Ollama if Google fails."""
     if target not in TARGETS:
         raise ValueError(f"unsupported target language: {target}")
@@ -338,6 +338,8 @@ def translate_text(text: str, target: str, translator_factory=None, *,
         if not ollama_fallback:
             raise
         try:
+            if status_callback:
+                status_callback("Google غير متاح؛ جاري استخدام Ollama المحلي ...")
             return translate_with_ollama(text, target, ollama_url, ollama_model)
         except Exception as ollama_exc:
             raise RuntimeError(
