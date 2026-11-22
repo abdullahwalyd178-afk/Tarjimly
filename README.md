@@ -32,7 +32,7 @@ You can also use the two buttons in the app window.
 
 English, Chinese (Simplified), Japanese, Korean, French, Spanish, German, Russian, Turkish, Italian, Portuguese, and Arabic are supported. Up to four source languages are active at once; the default set is English, Chinese, Japanese, and Korean.
 
-After the first run, edit `config.json` beside the app to change `source_languages` (use the language keys from `tarjimly_core.py`). The target language, always-on-top setting, and shortcuts are also stored there.
+After the first run, edit `config.json` beside the app to change `source_languages` (use the language keys from `tarjimly_core.py`). The target language, always-on-top setting, and shortcuts are also stored there. Ollama fallback is enabled by default; set `ollama_fallback` to `false` to disable it. `ollama_url` defaults to `http://127.0.0.1:11434`; `ollama_model` can be left empty to use the first installed Ollama model, or set to a specific model name.
 
 ## Diagnostics
 
