@@ -341,7 +341,7 @@ class App:
 
     def _translate_only(self, text: str, with_original: bool, target: str):
         try:
-            translated = core.translate_text(text, target, ollama_fallback=self.cfg.get("ollama_fallback", True), ollama_url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=self.cfg.get("ollama_model", ""))
+            translated = core.translate_text(text, target, ollama_fallback=self.cfg.get("ollama_fallback", True), ollama_url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=self.cfg.get("ollama_model", ""), status_callback=lambda message: self.events.put(("status", message)))
             if with_original:
                 self.events.put(("result", text, translated, target))
             else:
