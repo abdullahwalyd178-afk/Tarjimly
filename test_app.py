@@ -31,7 +31,7 @@ def test_ocr_worker_emits_full_result(monkeypatch):
     app = make_app()
     monkeypatch.setattr(core, "ocr_image", lambda image, languages: "recognized text")
     monkeypatch.setattr(core, "clean_text", lambda text, join: text)
-    monkeypatch.setattr(core, "translate_text", lambda text, target: "translated")
+    monkeypatch.setattr(core, "translate_text", lambda text, target, **kwargs: "translated")
     app._ocr_and_translate(object(), "ar")
     assert app.events.get_nowait() == ("status", "جاري الترجمة ...")
     assert app.events.get_nowait() == ("result", "recognized text", "translated", "ar")
