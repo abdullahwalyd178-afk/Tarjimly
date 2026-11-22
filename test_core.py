@@ -80,7 +80,17 @@ def test_translate():
     except ValueError:
         pass
     # A Google rate-limit response should use Ollama immediately, without retrying Google.
-    rate_limited = FakeTranslator(fail_first=99)
+    class TooManyRequests(Exception):
+        pass
+
+    class RateLimitedTranslator:
+        def __init__(self):
+            self.calls = 0
+        def translate(self, text):
+            self.calls += 1
+            raise TooManyRequests("429 Too Many Requests")
+
+    rate_limited = RateLimitedTranslator()
     original_fallback = core.translate_with_ollama
     try:
         core.translate_with_ollama = lambda text, target, base_url, model: "LOCAL:" + text
