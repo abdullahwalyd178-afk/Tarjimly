@@ -271,7 +271,7 @@ class App:
                 self.events.put(("error", "ما قدرتش أقرا نص في المنطقة دي. جرّب تحديد أوضح أو أكبر."))
                 return
             self.events.put(("status", "جاري الترجمة ..."))
-            translated = core.translate_text(text, target)
+            translated = core.translate_text(text, target, ollama_fallback=self.cfg.get("ollama_fallback", True), ollama_url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=self.cfg.get("ollama_model", ""))
             self.events.put(("result", text, translated, target))
 
         except Exception as exc:
@@ -341,7 +341,7 @@ class App:
 
     def _translate_only(self, text: str, with_original: bool, target: str):
         try:
-            translated = core.translate_text(text, target)
+            translated = core.translate_text(text, target, ollama_fallback=self.cfg.get("ollama_fallback", True), ollama_url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=self.cfg.get("ollama_model", ""))
             if with_original:
                 self.events.put(("result", text, translated, target))
             else:
