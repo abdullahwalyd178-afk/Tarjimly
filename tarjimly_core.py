@@ -61,7 +61,11 @@ def normalize_config(user_cfg: dict) -> dict:
     if isinstance(user_cfg, dict):
         cfg.update(user_cfg)
 
-    langs = [c for c in cfg.get("source_languages", []) if c in LANGS]
+    raw_langs = cfg.get("source_languages", [])
+    # A hand-edited or partially written config must not prevent startup.
+    if not isinstance(raw_langs, (list, tuple)):
+        raw_langs = []
+    langs = [c for c in raw_langs if isinstance(c, str) and c in LANGS]
     seen: List[str] = []
     for c in langs:
         if c not in seen:
