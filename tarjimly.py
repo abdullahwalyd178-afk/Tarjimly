@@ -271,7 +271,7 @@ class App:
                 self.events.put(("error", "ما قدرتش أقرا نص في المنطقة دي. جرّب تحديد أوضح أو أكبر."))
                 return
             self.events.put(("status", "جاري الترجمة ..."))
-            translated = core.translate_text(text, target, ollama_fallback=self.cfg.get("ollama_fallback", True), ollama_url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=self.cfg.get("ollama_model", ""))
+            translated = core.translate_text(text, target, ollama_fallback=self.cfg.get("ollama_fallback", True), ollama_url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=self.cfg.get("ollama_model", ""), status_callback=lambda message: self.events.put(("status", message)))
             self.events.put(("result", text, translated, target))
 
         except Exception as exc:
